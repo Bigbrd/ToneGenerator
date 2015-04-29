@@ -2,7 +2,9 @@
 //  ToneGeneratorViewController.h
 //  ToneGenerator
 //
-//  Created by Matt Gallagher on 2010/10/20.
+//  Changed and Applied by Bryan Dickens 4/29/2015
+//
+//  Initially started by Matt Gallagher on 2010/10/20.
 //  Copyright 2010 Matt Gallagher. All rights reserved.
 //
 //  Permission is given to use this source code file, free of charge, in any
@@ -15,7 +17,6 @@
 #import <UIKit/UIKit.h>
 #import <AudioUnit/AudioUnit.h>
 #import <AVFoundation/AVFoundation.h>
-//#import <CoreAudio/CoreAudioTypes.h>
 #import <MessageUI/MessageUI.h>
 #import <MessageUI/MFMailComposeViewController.h>
 
@@ -31,9 +32,6 @@
     double lowPassResults;
 
 @public
-    //AVAudioRecorder *recorder;
-    //NSTimer *levelTimer;
-    //double lowPassResults;
 	double frequency;
 	double sampleRate;
 	double theta;

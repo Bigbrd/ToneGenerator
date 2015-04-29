@@ -3,11 +3,14 @@
 //  ToneGenerator
 //
 //
+#define pauseTime 2
+#define sleepTime 1.0f
 
 #import "ToneGeneratorViewController.h"
 #import <AudioToolbox/AudioToolbox.h>
 
 
+//this method creates the tone that is played
 OSStatus RenderTone(
 	void *inRefCon, 
 	AudioUnitRenderActionFlags 	*ioActionFlags, 
@@ -25,45 +28,23 @@ OSStatus RenderTone(
 		(ToneGeneratorViewController *)inRefCon;
 	double theta = viewController->theta;
 	double theta_increment = 2.0 * M_PI * viewController->frequency / viewController->sampleRate;
+    
 	// This is a mono tone generator so we only need the first buffer
 	const int channel = 0;
 	Float32 *buffer = (Float32 *)ioData->mBuffers[channel].mData;
     
-    NSString *frequencyString = [NSString stringWithFormat:@"%d", (int)viewController->frequency];
-    //[data writeToFile:path options:NSDataWritingAtomic error:&error];
-    NSString *fileName = [NSString stringWithFormat:@"/Users/bryan/Documents/Xcode Projects/Tone Gen/audioFreq%@.txt",frequencyString];
-    NSError * error = NULL;
-    NSStringEncoding encoding;
-    NSMutableString * content = [[NSMutableString alloc] initWithContentsOfFile: fileName usedEncoding: &encoding error: &error];
     
-    if(content)
+    //on the mobile form
+    // Generate the samples
+    for (UInt32 frame = 0; frame < inNumberFrames; frame++)
     {
+        buffer[frame] = sin(theta) * amplitude;
         
-        // Generate the samples
-        for (UInt32 frame = 0; frame < inNumberFrames; frame++)
-        {
-            buffer[frame] = sin(theta) * amplitude;
-            //NSLog(@"%f",buffer[frame]);
-            
-            if((frame / 500) ==1){
-            
-            NSString *str = [NSString stringWithFormat:@"%f", buffer[frame]];
-            [content appendFormat: @"%@ ", str];
-            
+        if((frame / 500) ==1){
             //save content to the documents directory
             if(!viewController->allowRecording)
-                {
-                    BOOL success = [content writeToFile:fileName
-                                             atomically:YES
-                                               encoding:NSStringEncodingConversionAllowLossy
-                                                  error:&error];
+            {
                 
-                    if(success == NO)
-                    {
-                        NSLog( @"couldn't write out file to %@, error is %@", fileName, [error localizedDescription]);
-                    }
-                }
-            
             }
             
             theta += theta_increment;
@@ -73,36 +54,8 @@ OSStatus RenderTone(
             }
         }
     }
-        else
-        {
-            //on the mobile form
-            // Generate the samples
-            for (UInt32 frame = 0; frame < inNumberFrames; frame++)
-            {
-                buffer[frame] = sin(theta) * amplitude;
-                //NSLog(@"%f",buffer[frame]);
-                
-                if((frame / 500) ==1){
-                    
-                    //NSString *str = [NSString stringWithFormat:@"%f", buffer[frame]];
-                    //[content appendFormat: @"%@ ", str];
-                    
-                    //save content to the documents directory
-                    if(!viewController->allowRecording)
-                    {
-                       
-                        
-                    }
-                    
-                    theta += theta_increment;
-                    if (theta > 2.0 * M_PI)
-                    {
-                        theta -= 2.0 * M_PI;
-                    }
-                }
-            }
 
-        }
+
 	
 	// Store the theta back in the view controller
 	viewController->theta = theta;
@@ -120,9 +73,6 @@ void ToneInterruptionListener(void *inClientData, UInt32 inInterruptionState)
 
 @interface ToneGeneratorViewController()
 
-@property (nonatomic, strong)   NSString *fileText;
-@property (nonatomic, strong)   NSString *fileName2;
-@property (nonatomic, strong)   NSMutableString *content2;
 @property   NSInteger count;
 @property (nonatomic, strong)   NSMutableString *contentMobile;
 
@@ -199,51 +149,21 @@ void ToneInterruptionListener(void *inClientData, UInt32 inInterruptionState)
 
 - (IBAction)togglePlay:(UIButton *)selectedButton
 {
-    NSString *frequencyString = [NSString stringWithFormat:@"%d", (int)frequency];
-    NSString *fileName = [NSString stringWithFormat:@"/Users/bryan/Documents/Xcode Projects/Tone Gen/audioFreq%@.txt",frequencyString];
-    [[NSFileManager defaultManager] createFileAtPath:fileName contents:nil attributes:nil];
-
-    
-//	if (toneUnit)
-//	{
-//		AudioOutputUnitStop(toneUnit);
-//		AudioUnitUninitialize(toneUnit);
-//		AudioComponentInstanceDispose(toneUnit);
-//		toneUnit = nil;
-//        
-//        
-//		[selectedButton setTitle:NSLocalizedString(@"Play", nil) forState:0];
-//	}
-//	else
-//	{
-//		[self createToneUnit];
-//		
-//		// Stop changing parameters on the unit
-//		OSErr err = AudioUnitInitialize(toneUnit);
-//		NSAssert1(err == noErr, @"Error initializing unit: %hd", err);
-//		
-//		// Start playback
-//		err = AudioOutputUnitStart(toneUnit);
-//		NSAssert1(err == noErr, @"Error starting unit: %hd", err);
-//		
-//		[selectedButton setTitle:NSLocalizedString(@"Stop", nil) forState:0];
-//	}
-    
     //just play the tone one time
     [self createToneUnit];
     OSErr err = AudioUnitInitialize(toneUnit);
     NSAssert1(err == noErr, @"Error initializing unit: %hd", err);
-    //NSLog(@"%@",toneUnit);
-    sleep(2);
+    sleep(pauseTime);
     err = AudioOutputUnitStart(toneUnit);
     NSAssert1(err == noErr, @"Error starting unit: %hd", err);
-    [NSThread sleepForTimeInterval:1.0f];//here is where we control how long the tone is for
-    //NSLog(@"%@",toneUnit);
+    
+    [NSThread sleepForTimeInterval:sleepTime];//here is where we control how long the tone is for
+    
+    //end the playing of the tone
     AudioOutputUnitStop(toneUnit);
     AudioUnitUninitialize(toneUnit);
     AudioComponentInstanceDispose(toneUnit);
     toneUnit = nil;
-    //NSLog(@"Done");
 }
 
 - (IBAction)toggleRecord:(UIButton *)selectedButton
@@ -258,8 +178,10 @@ void ToneInterruptionListener(void *inClientData, UInt32 inInterruptionState)
     else
     {
         [self createNewRecordOutput];
+        
         //THIS is the limiting reagent on storage, is how fast we can write which is 0.1 milliseconds 0.0001s
         levelTimer = [NSTimer scheduledTimerWithTimeInterval: 0.0 target: self selector: @selector(levelTimerCallback:) userInfo: nil repeats: YES];
+        
         [selectedButton setTitle:NSLocalizedString(@"Stop", nil) forState:0];
     }
     allowRecording = !allowRecording;
@@ -291,9 +213,6 @@ void ToneInterruptionListener(void *inClientData, UInt32 inInterruptionState)
     
     NSURL *url = [NSURL fileURLWithPath:soundFilePath];
     NSLog(@"%@", url);
-
-    //NSURL *url = [NSURL fileURLWithPath:@"/dev/null"];     //this worked for sim only
-
     
     NSDictionary *settings = [NSDictionary dictionaryWithObjectsAndKeys:
                               [NSNumber numberWithFloat: 44100.0],                 AVSampleRateKey,
@@ -310,42 +229,16 @@ void ToneInterruptionListener(void *inClientData, UInt32 inInterruptionState)
         [recorder prepareToRecord];
         recorder.meteringEnabled = YES;
         [recorder record];
-//        levelTimer = [NSTimer scheduledTimerWithTimeInterval: 0.03 target: self selector: @selector(levelTimerCallback:) userInfo: nil repeats: YES];
     }
     
     [self sliderChanged:frequencySlider];
     sampleRate = 44100;
     
-    //audioSession set
-    //this code breaks my stuff, but then I cant play anything
-//    OSStatus result = AudioSessionInitialize(NULL, NULL, ToneInterruptionListener, self);
-//    if (result == kAudioSessionNoError)
-//    {
-//        UInt32 sessionCategory = kAudioSessionCategory_MediaPlayback;//kAudioSessionCategory_PlayAndRecord;//
-//        AudioSessionSetProperty(kAudioSessionProperty_AudioCategory, sizeof(sessionCategory), &sessionCategory);
-//    }
-//    AudioSessionSetActive(true);
-    
-    
-    
-    
-    //[self createNewRecordOutput];
-//    self.fileName2 = [NSString stringWithFormat:@"/Users/bryan/Documents/Xcode Projects/Tone Gen/recordAudioFreqOutput%ld.txt",(long)self.count];
-//    [[NSFileManager defaultManager] createFileAtPath:self.fileName2 contents:nil attributes:nil];
-//    NSStringEncoding encoding;
-//    self.content2 = [[NSMutableString alloc] initWithContentsOfFile: self.fileName2 usedEncoding: &encoding error: nil];
-    
-    
 }
 
 
 -(void)createNewRecordOutput{
-    self.fileName2 = [NSString stringWithFormat:@"/Users/bryan/Documents/Xcode Projects/Tone Gen/recordAudioFreqOutput%ld.txt",(long)self.count];
-    [[NSFileManager defaultManager] createFileAtPath:self.fileName2 contents:nil attributes:nil];
-    NSStringEncoding encoding;
-    self.content2 = [[NSMutableString alloc] initWithContentsOfFile: self.fileName2 usedEncoding: &encoding error: nil];
     self.contentMobile = [[NSMutableString alloc]  init];
-    //self.contentMobile = [[NSMutableString alloc] initWithContentsOfURL:<#(NSURL *)#> encoding:&encoding error:nil];
 }
 
 - (void)viewDidUnload {
@@ -365,19 +258,9 @@ void ToneInterruptionListener(void *inClientData, UInt32 inInterruptionState)
     double peakPowerForChannel = pow(10, (0.05 * [recorder peakPowerForChannel:0]));
     lowPassResults = ALPHA * peakPowerForChannel + (1.0 - ALPHA) * lowPassResults;
     
-    //if(!allowRecording){
+    //append the string of the recorded audio
     NSString *str = [NSString stringWithFormat:@"%f", lowPassResults];
-    //[self.content2 appendFormat: @"%@ ", str];
     [self.contentMobile appendFormat:@"%@ ",str];
-    //save content to the documents directory
-    //[self.content2 writeToFile:self.fileName2
-    //                          atomically:YES
-    //                            encoding:NSStringEncodingConversionAllowLossy
-    //                               error:nil];
-    
-   
-    //NSLog(@"%f",lowPassResults);
-    //}
     
 }
 
@@ -386,6 +269,8 @@ void ToneInterruptionListener(void *inClientData, UInt32 inInterruptionState)
     [recorder release];
     [super dealloc];
 }
+
+#pragma mark - Email Composition Methods
 
 - (IBAction)exportButton:(UIButton *)selectedButton
 {
@@ -414,7 +299,7 @@ void ToneInterruptionListener(void *inClientData, UInt32 inInterruptionState)
     [picker setSubject:@"Sound data!"];
     
     // Set up recipients
-     NSArray *toRecipients = [NSArray arrayWithObject:@"bid5098@psu.edu"];
+    NSArray *toRecipients = [NSArray arrayWithObject:@"example@example.com"];
     // NSArray *ccRecipients = [NSArray arrayWithObjects:@"second@example.com", @"third@example.com", nil];
     // NSArray *bccRecipients = [NSArray arrayWithObject:@"fourth@example.com"];
     
@@ -422,15 +307,11 @@ void ToneInterruptionListener(void *inClientData, UInt32 inInterruptionState)
     // [picker setCcRecipients:ccRecipients];
     // [picker setBccRecipients:bccRecipients];
     
-    // Attach an image to the email
-    //UIImage *coolImage = ...;
+    // Attach the data to the email
     NSData *myData = [self.contentMobile dataUsingEncoding:NSUTF8StringEncoding];
-    //NSData *myData = UIImagePNGRepresentation(coolImage);
     [picker addAttachmentData:myData mimeType:@"text/csv" fileName:@"output.txt"];
     
-    // Fill out the email body text
-    NSString *emailBody = @"My cool stuff is attached";
-    [picker setMessageBody:self.content2 isHTML:NO];
+    //[picker setMessageBody:self.content2 isHTML:NO];
     [self presentModalViewController:picker animated:YES];
     
     [picker release];
